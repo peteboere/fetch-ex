@@ -1,10 +1,10 @@
-import {Headers, Request, Response} from '#src/api.native';
+import {Headers, Request, Response} from './api.native.js';
 
-export {default as httpMethods} from '#src/http-methods';
-export * from '#src/http-methods';
-export * as httpCodes from '#src/http-codes';
-export * from '#src/http-codes';
-export * as mimeTypes from '#src/mime-types';
+export {default as httpMethods} from './http-methods.js';
+export * from './http-methods.js';
+export * as httpCodes from './http-codes.js';
+export * from './http-codes.js';
+export * as mimeTypes from './mime-types.js';
 
 export function isHeaders(it) {
 

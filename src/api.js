@@ -1,10 +1,10 @@
 import {defaults, isEmpty, isFunction, isNil, sum} from 'lodash-es';
-import {fetch, Request} from '#src/api.native';
-import {toHeaders} from '#src/api.util';
-import {isServerErrorCode} from '#src/http-codes';
-import * as httpMethods from '#src/http-methods';
-import * as mimeTypes from '#src/mime-types';
-import {assign, countOf, defineProperties, ms, sleep} from '#src/util';
+import {fetch, Request} from './api.native.js';
+import {toHeaders} from './api.util.js';
+import {isServerErrorCode} from './http-codes.js';
+import * as httpMethods from './http-methods.js';
+import * as mimeTypes from './mime-types.js';
+import {assign, countOf, defineProperties, ms, sleep} from './util.js';
 
 /**
  * Extension of native fetch API (node-fetch)

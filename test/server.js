@@ -1,7 +1,7 @@
 import {env} from 'node:process';
 import express from 'express';
-import * as mimeTypes from '#src/mime-types';
-import {sleep} from '#src/util';
+import * as mimeTypes from '../src/mime-types.js';
+import {sleep} from '../src/util.js';
 
 const port = env.PORT || 8080;
 

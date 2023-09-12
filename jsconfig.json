@@ -1,6 +1,5 @@
 {
     "compilerOptions": {
-        "baseUrl": ".",
         "checkJs": true,
         "module": "nodenext",
         "moduleResolution": "nodenext",

@@ -1,4 +1,4 @@
-import {fetch} from '#src/api.native';
+import {fetch} from './api.native.js';
 
 type FetchParams = Parameters<typeof fetch>;
 type FetchResource = FetchParams[0];
