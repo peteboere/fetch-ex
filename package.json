@@ -1,5 +1,5 @@
 {
-    "name": "fetch-ex",
+    "name": "fetch-ext",
     "description": "fetch() extension",
     "scripts": {
         "lint": "eslint --fix .",
