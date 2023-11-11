@@ -282,7 +282,10 @@ class FetchEx {
             }
         }
         else {
-            run.retryable = retryConfig.methods.includes(this.request.method)
+            const retryableMethod = (retryConfig.methods === false)
+                || retryConfig.methods.includes(this.request.method);
+
+            run.retryable = retryableMethod
                 && isServerErrorCode(this.response.status);
         }
     }

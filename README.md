@@ -13,13 +13,13 @@ Extension of [native fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fet
   Request timeout
 
 * **`retry` Object**
-  - **`limit` Number**
+  - **`limit` number**
 
     Default: 1
-  - **`methods`[String]**
+  - **`methods` string[] | false**
 
     Default: [DELETE, GET, HEAD, PATCH, PUT]
-  - **`delay` Number | String**
+  - **`delay` number | string**
 
     Default: 100
 
