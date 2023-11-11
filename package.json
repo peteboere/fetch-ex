@@ -4,7 +4,8 @@
     "scripts": {
         "lint": "eslint --fix .",
         "test": "mocha test/test.js",
-        "ts-check": "tsc -p jsconfig.json"
+        "ts-check": "tsc -p jsconfig.json",
+        "ts-declare": "tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir .types"
     },
     "engines": {
         "node": ">=18"
@@ -30,6 +31,7 @@
         "typescript": "~5.2.2"
     },
     "main": "index.js",
+    "types": ".types/index.d.ts",
     "version": "1.0.1",
     "repository": {
         "type": "git",
