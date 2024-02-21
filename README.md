@@ -19,7 +19,7 @@ Extension of [native fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fet
   - **`methods` string[] | false**
 
     Default: [DELETE, GET, HEAD, PATCH, PUT]
-  - **`delay` number | string**
+  - **`delay` number | string | resolver**
 
     Default: 100
 

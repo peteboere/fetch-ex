@@ -1,7 +1,6 @@
 import {defaults, isEmpty, isFunction, isNil, sum} from 'lodash-es';
 import {fetch, Request} from './api.native.js';
 import {toHeaders} from './api.util.js';
-import {isServerErrorCode} from './http-codes.js';
 import * as httpMethods from './http-methods.js';
 import * as mimeTypes from './mime-types.js';
 import {assign, countOf, defineProperties, ms, sleep} from './util.js';
@@ -9,9 +8,9 @@ import {assign, countOf, defineProperties, ms, sleep} from './util.js';
 /**
  * Extension of native fetch API (node-fetch)
  *
- * @param {import('./_.d.ts').Resource} url
- * @param {import('./_.d.ts').Options} [options]
- * @returns {Promise<import('./_.d.ts').Response>}
+ * @param {import('./_.ts').Resource} url
+ * @param {import('./_.ts').Options} [options]
+ * @returns {Promise<import('./_.ts').Response>}
  */
 export async function fetchEx(url, options) {
 
@@ -44,6 +43,30 @@ class FetchEx {
                     httpMethods.PATCH,
                     httpMethods.PUT,
                 ],
+                statusCodes: [
+                    // Source: https://github.com/sindresorhus/got/blob/main/documentation/7-retry.md
+                    408, // Request Timeout
+                    413, // Request Too Large
+                    429, // Too Many Requests
+                    500,
+                    502,
+                    503,
+                    504,
+                    521,
+                    522,
+                    524,
+                ],
+                errorCodes: [
+                    // Source: https://github.com/sindresorhus/got/blob/main/documentation/7-retry.md
+                    'EADDRINUSE', // Could not bind to any free port.
+                    'EAI_AGAIN', // DNS lookup timed out.
+                    'ECONNREFUSED', // The connection was refused by the server.
+                    'ECONNRESET', // The connection was forcibly closed.
+                    'ENETUNREACH', // No internet connection.
+                    'ENOTFOUND', // Could not resolve the hostname to an IP address.
+                    'EPIPE', // The remote side of the stream being written has been closed.
+                    'ETIMEDOUT', // A connect or send request timeout.
+                ],
             },
         };
 
@@ -75,12 +98,12 @@ class FetchEx {
         const runLimit = (retryConfig?.limit || 0) + 1;
         const runs = [];
 
-        /** @type {{retryable?; timeout?, error?}} */
+        /** @type {{isRetryable?; timeout?, error?}} */
         let run;
 
         do {
-            if (run?.retryable) {
-                await sleep(retryConfig.delay);
+            if (run?.isRetryable) {
+                await sleep(this.#resolveRetryDelay(runs));
             }
 
             const startTime = Date.now();
@@ -143,12 +166,12 @@ class FetchEx {
                 },
                 failed: {
                     get() {
-                        return Boolean(this.error || this.retryable);
+                        return Boolean(this.error || this.isRetryable);
                     },
                 },
             }));
         }
-        while (run.retryable && runs.length < runLimit);
+        while (run.isRetryable && runs.length < runLimit);
 
         const stats = this.#stats(runs);
 
@@ -254,7 +277,7 @@ class FetchEx {
         if (error) {
             if (FetchEx.#isAbortError(error)) {
                 if (extension.timeout) {
-                    run.retryable = true;
+                    run.isRetryable = true;
                 }
                 else {
                     /*
@@ -265,29 +288,59 @@ class FetchEx {
                 error.reason = this.fetchArgs[1].signal.reason;
             }
             else {
-                const networkErrorCodes = [
-                    // Source: https://github.com/sindresorhus/got/blob/main/documentation/7-retry.md
-                    'EADDRINUSE', // Could not bind to any free port.
-                    'EAI_AGAIN', // DNS lookup timed out.
-                    'ECONNREFUSED', // The connection was refused by the server.
-                    'ECONNRESET', // The connection was forcibly closed.
-                    'ENETUNREACH', // No internet connection.
-                    'ENOTFOUND', // Could not resolve the hostname to an IP address.
-                    'EPIPE', // The remote side of the stream being written has been closed.
-                    'ETIMEDOUT', // A connect or send request timeout.
-                ];
-
-                run.retryable = networkErrorCodes
+                run.isRetryable = retryConfig
+                    .errorCodes
                     .includes(FetchEx.#errorCode(error));
             }
         }
         else {
             const retryableMethod = (retryConfig.methods === false)
-                || retryConfig.methods.includes(this.request.method);
+                || retryConfig.methods
+                    .includes(this.request.method);
 
-            run.retryable = retryableMethod
-                && isServerErrorCode(this.response.status);
+            run.isRetryable = retryableMethod
+                && retryConfig.statusCodes
+                    .includes(this.response.status);
         }
+    }
+
+    #resolveRetryDelay(runs) {
+
+        const minDelay = 100;
+        const normaliseDelay = delay => Math.max(delay, minDelay);
+
+        const delayParam = this.extension.retry.delay;
+
+        if (! isFunction(delayParam)) {
+            return normaliseDelay(ms(delayParam));
+        }
+
+        /**
+         * Date for retry, or seconds string.
+         * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After
+         */
+        const retryAfterHeader = this.response
+            .headers
+            .get('retry-after');
+
+        let retryAfterMS;
+
+        if (retryAfterHeader) {
+
+            const parsedHeaderDate = Date
+                .parse(retryAfterHeader);
+
+            retryAfterMS = Number.isInteger(parsedHeaderDate)
+                ? parsedHeaderDate - Date.now()
+                : (parseInt(retryAfterHeader, 10) || 0) / 1000;
+        }
+
+        const delay = delayParam({
+            retryAttempt: runs.length,
+            retryAfterMS,
+        }, this.response);
+
+        return normaliseDelay(delay);
     }
 
     static #errorCode(error) {

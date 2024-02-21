@@ -5,6 +5,12 @@ type FetchResource = FetchParams[0];
 type FetchOptions = FetchParams[1];
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
+type RetryDelayResolver = (retryMetadata: {
+    retryAttempt?: number,
+    /** Inferred from retry-after header when available */
+    retryAfterMS?: number,
+}, lastResponse?: FetchResponse) => number;
+
 export type Resource = FetchResource;
 
 export interface Options extends FetchOptions {
@@ -37,7 +43,7 @@ export interface Options extends FetchOptions {
              * Delay between retries.
              * @default 100
              */
-            delay?: number | string;
+            delay?: number | string | RetryDelayResolver;
         };
 
         /**
