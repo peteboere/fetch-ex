@@ -98,17 +98,20 @@ class FetchEx {
         const runLimit = (retryConfig?.limit || 0) + 1;
         const runs = [];
 
-        /** @type {{isRetryable?; timeout?, error?}} */
-        let run;
+        /** @type {{isRetryable?; timeout?, error?, delay?}} */
+        let run = {};
 
         do {
-            if (run?.isRetryable) {
-                await sleep(this.#resolveRetryDelay(runs));
+            const {isRetryable} = run;
+
+            run = {};
+
+            if (isRetryable) {
+                run.delay = this.#resolveRetryDelay(runs);
+                await sleep(run.delay);
             }
 
             const startTime = Date.now();
-
-            run = {};
 
             try {
                 if (extension.timeout) {
@@ -307,7 +310,8 @@ class FetchEx {
     #resolveRetryDelay(runs) {
 
         const minDelay = 100;
-        const normaliseDelay = delay => Math.max(delay, minDelay);
+        const maxDelay = ms('10 minutes');
+        const normaliseDelay = (delay=null) => Math.min(Math.max(delay, minDelay), maxDelay);
 
         const delayParam = this.extension.retry.delay;
 
@@ -326,13 +330,17 @@ class FetchEx {
         let retryAfterMS;
 
         if (retryAfterHeader) {
+            if (/^\d+$/.test(retryAfterHeader)) {
+                retryAfterMS = (parseInt(retryAfterHeader, 10) || 0) * 1000;
+            }
+            else {
+                const parsedHeaderDate = Date
+                    .parse(retryAfterHeader);
 
-            const parsedHeaderDate = Date
-                .parse(retryAfterHeader);
-
-            retryAfterMS = Number.isInteger(parsedHeaderDate)
-                ? parsedHeaderDate - Date.now()
-                : (parseInt(retryAfterHeader, 10) || 0) / 1000;
+                if (Number.isInteger(parsedHeaderDate)) {
+                    retryAfterMS = parsedHeaderDate - Date.now();
+                }
+            }
         }
 
         const delay = delayParam({

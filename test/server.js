@@ -24,7 +24,7 @@ app.use((req, res, next) => {
 
 app.use('/request', async (req, res) => {
 
-    const {status=200, text, json, delay} = req.query;
+    const {status=200, text, json, delay, retryAfter} = req.query;
 
     if (delay) {
         await sleep(delay);
@@ -32,6 +32,10 @@ app.use('/request', async (req, res) => {
 
     if (json) {
         res.set('content-type', mimeTypes.json);
+    }
+
+    if (retryAfter) {
+        res.set('retry-after', retryAfter);
     }
 
     res.status(parseInt(status, 10));

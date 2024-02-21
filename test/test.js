@@ -1,3 +1,4 @@
+import {mock} from 'node:test';
 import agentKeepAlive from 'agentkeepalive';
 import chai, {expect} from 'chai';
 import chaiAsPromised from 'chai-as-promised';
@@ -129,6 +130,102 @@ describe('fetchEx()', () => {
             .to.equal(3);
         expect(stats.fail)
             .to.include('failed with AbortError (Timeout <100 ms>) after 3 attempts');
+    });
+
+    it('should retry requests using extension.delay resolver and retry-after header', async function () {
+
+        this.timeout(5000);
+
+        const defaultDelay = 100;
+
+        const samples = [
+            // Relative date test must fire first.
+            {
+                retryAfter: new Date(Date.now() + 2000).toISOString(),
+                expectRetryAfter: [1700, 2000],
+            },
+            {
+                retryAfter: 1,
+                expectRetryAfter: 1000,
+            },
+            {
+                // Fallback delay.
+                expectRetryAfter: defaultDelay,
+            },
+        ];
+
+        for (const sample of samples) {
+
+            const url = context.testRequestURL({
+                status: 429,
+                ...(sample.retryAfter && {
+                    retryAfter: sample.retryAfter,
+                }),
+            });
+
+            const delayResolver = mock.fn(({retryAfterMS}) => retryAfterMS);
+
+            /** @type {any} */
+            let stats;
+
+            const request = () => fetchEx(url, {
+                extension: {
+                    retry: {
+                        limit: 1,
+                        delay: delayResolver,
+                    },
+                    onComplete(runStats) {
+                        stats = runStats;
+                    },
+                    log: {
+                        // eslint-disable-next-line no-console
+                        fail: console.error,
+                    },
+                },
+            });
+
+            const response = await request();
+
+            expect(delayResolver.mock.calls)
+                .to.have.lengthOf(1);
+
+            const [{arguments: args}] = delayResolver.mock.calls;
+
+            expect(args[0])
+                .to.have.keys(
+                    'retryAttempt',
+                    'retryAfterMS',
+                )
+                .and.include({
+                    retryAttempt: 1,
+                });
+
+            for (const [source, delay] of Object.entries({
+                'args.retryAfterMS': args[0].retryAfterMS ?? defaultDelay,
+                'lastRun.delay': stats.lastRun.delay,
+            })) {
+                const message = `${source} Should match predicted delay for <Retry-After: ${sample.retryAfter}>`;
+
+                if (Array.isArray(sample.expectRetryAfter)) {
+                    expect(delay)
+                        .to.be.within(...sample.expectRetryAfter, message);
+                }
+                else {
+                    expect(delay)
+                        .to.equal(sample.expectRetryAfter, message);
+                }
+            }
+
+            // @ts-ignore
+            expect(args[1])
+                .to.be.instanceOf(Response)
+                .and.have.property('status', 429);
+
+            expect(response.status)
+                .to.equal(429);
+            expect(response.ok)
+                .to.equal(false);
+        }
     });
 
     it('should have retry behaviour nullified by user-specified abort controller', async () => {
