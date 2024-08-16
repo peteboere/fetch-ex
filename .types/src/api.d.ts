@@ -1,8 +1,11 @@
+/** @import {FetchExtResponse, FetchExtRequestInit, Resource, Response} from './api.types.ts' */
 /**
  * Extension of native fetch API (node-fetch)
  *
- * @param {import('./_.ts').Resource} url
- * @param {import('./_.ts').Options} [options]
- * @returns {Promise<import('./_.ts').Response>}
+ * @param {Resource} url
+ * @param {FetchExtRequestInit} [options]
  */
-export function fetchEx(url: import('./_.ts').Resource, options?: import('./_.ts').Options): Promise<import('./_.ts').Response>;
+export function fetchEx(url: Resource, options?: FetchExtRequestInit): Promise<FetchExtResponse>;
+import type { Resource } from './api.types.ts';
+import type { FetchExtRequestInit } from './api.types.ts';
+import type { FetchExtResponse } from './api.types.ts';

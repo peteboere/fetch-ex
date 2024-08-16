@@ -1,9 +1,11 @@
 {
     "compilerOptions": {
         "checkJs": true,
+        "allowImportingTsExtensions": true,
         "module": "nodenext",
         "moduleResolution": "nodenext",
         "noEmit": true,
+        "strictNullChecks": true,
         "target": "esnext",
         "maxNodeModuleJsDepth": 0,
     },

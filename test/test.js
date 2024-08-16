@@ -2,7 +2,7 @@ import {mock} from 'node:test';
 import agentKeepAlive from 'agentkeepalive';
 import chai, {expect} from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import {isNil} from 'lodash-es';
+import {isNil, range} from 'lodash-es';
 import {fetchEx, isHeaders, Response} from '../index.js';
 import testServer from './server.js';
 
@@ -305,8 +305,7 @@ describe('fetchEx()', () => {
         const url = context
             .testRequestURL();
 
-        const fetches = Array(5)
-            .fill()
+        const fetches = range(5)
             .map(() => fetchEx(url, {
                 agent: agentResolver,
                 extension: {

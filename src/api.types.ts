@@ -1,19 +1,8 @@
 import {fetch} from './api.native.js';
 
-type FetchParams = Parameters<typeof fetch>;
-type FetchResource = FetchParams[0];
-type FetchOptions = FetchParams[1];
-type FetchResponse = Awaited<ReturnType<typeof fetch>>;
+export type Resource = Parameters<typeof fetch>[0];
 
-type RetryDelayResolver = (retryMetadata: {
-    retryAttempt?: number,
-    /** Inferred from retry-after header when available */
-    retryAfterMS?: number,
-}, lastResponse?: FetchResponse) => number;
-
-export type Resource = FetchResource;
-
-export interface Options extends FetchOptions {
+export interface FetchExtRequestInit extends RequestInit {
     /**
      * Fetch options extension.
      */
@@ -72,11 +61,13 @@ export interface Options extends FetchOptions {
     };
 }
 
-export interface Response extends FetchResponse {
+export type Response = Awaited<ReturnType<typeof fetch>>;
+
+export interface FetchExtResponse extends Awaited<ReturnType<typeof fetch>> {
     /**
      * Fetch response extension.
      */
-    extension?: {
+    extension: {
         /**
          * Infer and execute body parser based on `content-type`.
          */
@@ -88,3 +79,9 @@ export interface Response extends FetchResponse {
         stats: any;
     };
 }
+
+type RetryDelayResolver = (retryMetadata: {
+    retryAttempt?: number,
+    /** Inferred from retry-after header when available */
+    retryAfterMS?: number,
+}, lastResponse?: FetchExtResponse) => number;

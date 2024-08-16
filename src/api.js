@@ -4,13 +4,13 @@ import {toHeaders} from './api.util.js';
 import * as httpMethods from './http-methods.js';
 import * as mimeTypes from './mime-types.js';
 import {assign, countOf, defineProperties, ms, sleep} from './util.js';
+/** @import {FetchExtRequestInit, FetchExtResponse, Resource, Response} from './api.types.ts' */
 
 /**
  * Extension of native fetch API (node-fetch)
  *
- * @param {import('./_.ts').Resource} url
- * @param {import('./_.ts').Options} [options]
- * @returns {Promise<import('./_.ts').Response>}
+ * @param {Resource} url
+ * @param {FetchExtRequestInit} [options]
  */
 export async function fetchEx(url, options) {
 
@@ -29,6 +29,12 @@ class FetchEx {
 
     extension;
     fetchArgs;
+
+    /** @type {Request} */
+    request;
+
+    /** @type {Response | FetchExtResponse} */
+    response;
 
     constructor(fetchArgs, extension={}) {
 
@@ -195,7 +201,7 @@ class FetchEx {
 
     #augmentResponse(runs) {
 
-        return defineProperties(this.response, {
+        return /** @type {FetchExtResponse} */ (defineProperties(this.response, {
             extension: {
                 value: {
                     stats: this.#stats(runs),
@@ -213,7 +219,7 @@ class FetchEx {
                     },
                 },
             },
-        });
+        }));
     }
 
     #stats(runs) {
@@ -311,7 +317,7 @@ class FetchEx {
 
         const minDelay = 100;
         const maxDelay = ms('10 minutes');
-        const normaliseDelay = (delay=null) => Math.min(Math.max(delay, minDelay), maxDelay);
+        const normaliseDelay = (delay=0) => Math.min(Math.max(delay, minDelay), maxDelay);
 
         const delayParam = this.extension.retry.delay;
 
