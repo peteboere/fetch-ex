@@ -131,9 +131,6 @@ class FetchEx {
                 const [fetchURL] = this.fetchArgs;
                 const fetchOpts = {
                     ...this.fetchArgs[1],
-                    ...(extension.agent && {
-                        agent: extension.agent,
-                    }),
                 };
 
                 if (! isNil(extension.json)) {

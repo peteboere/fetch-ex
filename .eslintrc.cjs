@@ -196,9 +196,6 @@ const self = module.exports = {
 };
 
 self.overrides = [{
-    env: {
-        mocha: true,
-    },
     files: [
         'test/test.js',
     ],

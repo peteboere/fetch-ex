@@ -1,178 +1,119 @@
-import {mock} from 'node:test';
-import agentKeepAlive from 'agentkeepalive';
-import chai, {expect} from 'chai';
+import {after, before, describe, it, mock} from 'node:test';
+import * as chai from 'chai';
+import {expect} from 'chai';
 import chaiAsPromised from 'chai-as-promised';
-import {isNil, range} from 'lodash-es';
+import {isNil} from 'lodash-es';
 import {fetchEx, isHeaders, Response} from '../index.js';
 import testServer from './server.js';
 
 chai.use(chaiAsPromised);
 
-const context = {};
+describe('fetchExt', () => {
 
-before(async () => {
-    context.server = await testServer;
-    context.testRequestURL = input => `${context.server.origin}/request?${new URLSearchParams(input)}`;
-});
+    const context = {};
 
-after(() => context.server.close());
+    before(async () => {
+        context.server = await testServer;
+        context.testRequestURL = input => `${context.server.origin}/request?${new URLSearchParams(input)}`;
+    });
 
-describe('fetchEx()', () => {
+    after(() => context.server.close());
 
-    it('should handle different request inputs as native fetch except for extension behaviour', async () => {
+    describe('fetchEx()', () => {
 
-        const samples = [
-            [
-                {
-                    text: 'Text',
-                }, {
-                    text: 'Text',
-                    status: 200,
-                },
-            ],
-            [
-                {
-                    json: '{"error":"not found"}',
-                    status: 404,
-                }, {
-                    json: {error: 'not found'},
-                    status: 404,
-                },
-            ],
-            [
-                {
-                    json: '{"error":"internal"}',
-                    status: 500,
-                }, {
-                    json: {error: 'internal'},
-                    status: 500,
-                    retrys: {
-                        count: 1,
-                        fail: true,
+        it('should handle different request inputs as native fetch except for extension behaviour', async () => {
+
+            const samples = [
+                [
+                    {
+                        text: 'Text',
+                    }, {
+                        text: 'Text',
+                        status: 200,
                     },
-                    failMessage: 'failed with status 500 after 2 attempts',
-                },
-            ],
-        ];
+                ],
+                [
+                    {
+                        json: '{"error":"not found"}',
+                        status: 404,
+                    }, {
+                        json: {error: 'not found'},
+                        status: 404,
+                    },
+                ],
+                [
+                    {
+                        json: '{"error":"internal"}',
+                        status: 500,
+                    }, {
+                        json: {error: 'internal'},
+                        status: 500,
+                        retrys: {
+                            count: 1,
+                            fail: true,
+                        },
+                        failMessage: 'failed with status 500 after 2 attempts',
+                    },
+                ],
+            ];
 
-        for (const [input, expected] of samples) {
+            for (const [input, expected] of samples) {
 
-            const url = context.testRequestURL(input);
+                const url = context.testRequestURL(input);
 
-            const response = await
-                fetchEx(url);
+                const response = await
+                    fetchEx(url);
 
-            expect(response)
-                .to.be.instanceOf(Response);
-            expect(response.status)
-                .to.equal(expected.status);
-            expect(response.url)
-                .to.equal(url);
+                expect(response)
+                    .to.be.instanceOf(Response);
+                expect(response.status)
+                    .to.equal(expected.status);
+                expect(response.url)
+                    .to.equal(url);
 
-            if (expected.text) {
-                expect(await response.text())
-                    .to.equal(expected.text);
+                if (expected.text) {
+                    expect(await response.text())
+                        .to.equal(expected.text);
+                }
+                else if (expected.json) {
+                    expect(await response.json())
+                        .to.eql(expected.json);
+                }
+
+                // Extension.
+                const {stats} = response.extension;
+
+                expect(stats.runs.length - 1)
+                    .to.equal(expected.retrys?.count || 0);
+
+                if (! isNil(expected.retrys?.fail)) {
+                    expect(stats.lastRun.failed)
+                        .to.equal(expected.retrys.fail);
+                }
+
+                if (expected.failMessage) {
+                    expect(stats.fail)
+                        .to.include(expected.failMessage);
+                }
             }
-            else if (expected.json) {
-                expect(await response.json())
-                    .to.eql(expected.json);
-            }
-
-            // Extension.
-            const {stats} = response.extension;
-
-            expect(stats.runs.length - 1)
-                .to.equal(expected.retrys?.count || 0);
-
-            if (! isNil(expected.retrys?.fail)) {
-                expect(stats.lastRun.failed)
-                    .to.equal(expected.retrys.fail);
-            }
-
-            if (expected.failMessage) {
-                expect(stats.fail)
-                    .to.include(expected.failMessage);
-            }
-        }
-    });
-
-    it('should retry requests with extension.timeout', async () => {
-
-        /** @type {any} */
-        let stats;
-
-        const timeout = 100;
-        const url = context.testRequestURL({
-            delay: timeout * 2,
         });
 
-        const request = () => fetchEx(url, {
-            extension: {
-                timeout,
-                retry: {
-                    limit: 2,
-                    delay: 0,
-                },
-                onComplete(runStats) {
-                    stats = runStats;
-                },
-                log: {
-                    // eslint-disable-next-line no-console
-                    fail: console.error,
-                },
-            },
-        });
-
-        await expect(request())
-            .to.be.rejected;
-
-        expect(stats.runs.length)
-            .to.equal(3);
-        expect(stats.fail)
-            .to.include('failed with AbortError (Timeout <100 ms>) after 3 attempts');
-    });
-
-    it('should retry requests using extension.delay resolver and retry-after header', async function () {
-
-        this.timeout(5000);
-
-        const defaultDelay = 100;
-
-        const samples = [
-            // Relative date test must fire first.
-            {
-                retryAfter: new Date(Date.now() + 2000).toISOString(),
-                expectRetryAfter: [1700, 2000],
-            },
-            {
-                retryAfter: 1,
-                expectRetryAfter: 1000,
-            },
-            {
-                // Fallback delay.
-                expectRetryAfter: defaultDelay,
-            },
-        ];
-
-        for (const sample of samples) {
-
-            const url = context.testRequestURL({
-                status: 429,
-                ...(sample.retryAfter && {
-                    retryAfter: sample.retryAfter,
-                }),
-            });
-
-            const delayResolver = mock.fn(({retryAfterMS}) => retryAfterMS);
+        it('should retry requests with extension.timeout', async () => {
 
             /** @type {any} */
             let stats;
 
+            const timeout = 100;
+            const url = context.testRequestURL({
+                delay: timeout * 2,
+            });
+
             const request = () => fetchEx(url, {
                 extension: {
+                    timeout,
                     retry: {
-                        limit: 1,
-                        delay: delayResolver,
+                        limit: 2,
+                        delay: 0,
                     },
                     onComplete(runStats) {
                         stats = runStats;
@@ -184,226 +125,244 @@ describe('fetchEx()', () => {
                 },
             });
 
-            const response = await request();
+            await expect(request())
+                .to.be.rejected;
 
-            expect(delayResolver.mock.calls)
-                .to.have.lengthOf(1);
+            expect(stats.runs.length)
+                .to.equal(3);
+            expect(stats.fail)
+                .to.include('failed with AbortError (Timeout <100 ms>) after 3 attempts');
+        });
 
-            const [{arguments: args}] = delayResolver.mock.calls;
+        it('should retry requests using extension.delay resolver and retry-after header', {timeout: 5000}, async function () {
 
-            expect(args[0])
-                .to.have.keys(
-                    'retryAttempt',
-                    'retryAfterMS',
-                )
-                .and.include({
-                    retryAttempt: 1,
+            const defaultDelay = 100;
+
+            const samples = [
+                // Relative date test must fire first.
+                {
+                    retryAfter: new Date(Date.now() + 2000).toISOString(),
+                    expectRetryAfter: [1700, 2000],
+                },
+                {
+                    retryAfter: 1,
+                    expectRetryAfter: 1000,
+                },
+                {
+                    // Fallback delay.
+                    expectRetryAfter: defaultDelay,
+                },
+            ];
+
+            for (const sample of samples) {
+
+                const url = context.testRequestURL({
+                    status: 429,
+                    ...(sample.retryAfter && {
+                        retryAfter: sample.retryAfter,
+                    }),
                 });
 
-            for (const [source, delay] of Object.entries({
-                'args.retryAfterMS': args[0].retryAfterMS ?? defaultDelay,
-                'lastRun.delay': stats.lastRun.delay,
-            })) {
-                const message = `${source} Should match predicted delay for <Retry-After: ${sample.retryAfter}>`;
+                const delayResolver = mock.fn(({retryAfterMS}) => retryAfterMS);
 
-                if (Array.isArray(sample.expectRetryAfter)) {
-                    expect(delay)
-                        .to.be.within(...sample.expectRetryAfter, message);
+                /** @type {any} */
+                let stats;
+
+                const request = () => fetchEx(url, {
+                    extension: {
+                        retry: {
+                            limit: 1,
+                            delay: delayResolver,
+                        },
+                        onComplete(runStats) {
+                            stats = runStats;
+                        },
+                        log: {
+                            // eslint-disable-next-line no-console
+                            fail: console.error,
+                        },
+                    },
+                });
+
+                const response = await request();
+
+                expect(delayResolver.mock.calls)
+                    .to.have.lengthOf(1);
+
+                const [{arguments: args}] = delayResolver.mock.calls;
+
+                expect(args[0])
+                    .to.have.keys(
+                        'retryAttempt',
+                        'retryAfterMS',
+                    )
+                    .and.include({
+                        retryAttempt: 1,
+                    });
+
+                for (const [source, delay] of Object.entries({
+                    'args.retryAfterMS': args[0].retryAfterMS ?? defaultDelay,
+                    'lastRun.delay': stats.lastRun.delay,
+                })) {
+                    const message = `${source} Should match predicted delay for <Retry-After: ${sample.retryAfter}>`;
+
+                    if (Array.isArray(sample.expectRetryAfter)) {
+                        expect(delay)
+                            .to.be.within(...sample.expectRetryAfter, message);
+                    }
+                    else {
+                        expect(delay)
+                            .to.equal(sample.expectRetryAfter, message);
+                    }
                 }
-                else {
-                    expect(delay)
-                        .to.equal(sample.expectRetryAfter, message);
-                }
+
+                // @ts-ignore
+                expect(args[1])
+                    .to.be.instanceOf(Response)
+                    .and.have.property('status', 429);
+
+                expect(response.status)
+                    .to.equal(429);
+                expect(response.ok)
+                    .to.equal(false);
             }
-
-            // @ts-ignore
-            expect(args[1])
-                .to.be.instanceOf(Response)
-                .and.have.property('status', 429);
-
-            expect(response.status)
-                .to.equal(429);
-            expect(response.ok)
-                .to.equal(false);
-        }
-    });
-
-    it('should have retry behaviour nullified by user-specified abort controller', async () => {
-
-        /** @type {any} */
-        let stats;
-
-        const timeout = 100;
-        const url = context.testRequestURL({
-            delay: timeout * 2,
         });
 
-        const controller = new AbortController();
+        it('should have retry behaviour nullified by user-specified abort controller', async () => {
 
-        setTimeout(() => {
-            controller.abort('User-specified');
-        }, timeout);
+            /** @type {any} */
+            let stats;
 
-        const request = () => fetchEx(url, {
-            signal: controller.signal,
-            extension: {
-                retry: {
-                    limit: 2,
-                    delay: 0,
-                },
-                onComplete(runStats) {
-                    stats = runStats;
-                },
-            },
-        });
+            const timeout = 100;
+            const url = context.testRequestURL({
+                delay: timeout * 2,
+            });
 
-        await expect(request())
-            .to.be.rejected;
+            const controller = new AbortController();
 
-        expect(stats.runs.length)
-            .to.equal(1);
-        expect(stats.fail)
-            .to.include('failed with AbortError (User-specified) after 1 attempt');
-    });
+            setTimeout(() => {
+                controller.abort('User-specified');
+            }, timeout);
 
-    it('should handle broken request inputs as native fetch except for extension behaviour', async () => {
-
-        /** @type {any} */
-        let stats;
-
-        await expect(fetchEx('https://localhost-must-not-exist.com', {
+            const request = () => fetchEx(url, {
+                signal: controller.signal,
                 extension: {
                     retry: {
-                        limit: 3,
+                        limit: 2,
                         delay: 0,
                     },
                     onComplete(runStats) {
                         stats = runStats;
                     },
                 },
-            }))
-            .to.be.rejected;
-
-        expect(stats.runs.length)
-            .to.equal(4);
-        expect(stats.fail)
-            .to.include('failed with FetchError (ENOTFOUND) after 4 attempts');
-    });
-
-    it('should accept a custom agent as supported by node-fetch', async () => {
-
-        const agents = {
-            http: new agentKeepAlive(),
-            https: new agentKeepAlive
-                .HttpsAgent(),
-        };
-
-        const agentResolver = url => (url.protocol === 'https:')
-            ? agents.https
-            : agents.http;
-
-        const url = context
-            .testRequestURL();
-
-        const fetches = range(5)
-            .map(() => fetchEx(url, {
-                agent: agentResolver,
-                extension: {
-                    log: {
-                        // eslint-disable-next-line no-console
-                        ok: console.log,
-                    },
-                },
-            }));
-
-        await Promise.all(fetches);
-
-        expect(agents.http.getCurrentStatus())
-            .to.eql({
-                closeSocketCount: 0,
-                createSocketCount: 5,
-                createSocketErrorCount: 0,
-                errorSocketCount: 0,
-                freeSockets: {'localhost:8080:': 5},
-                requestCount: 5,
-                requests: {},
-                sockets: {},
-                timeoutSocketCount: 0,
-            });
-    });
-
-    it('should support extension.json', async () => {
-
-        const sourceData = {
-            foo: 1,
-        };
-
-        const url = context
-            .testRequestURL({
-                json: JSON.stringify(sourceData),
             });
 
-        const request = () => fetchEx(url, {
-            method: 'POST',
-            extension: {
-                json: sourceData,
-                debug: true,
-            },
+            await expect(request())
+                .to.be.rejected;
+
+            expect(stats.runs.length)
+                .to.equal(1);
+            expect(stats.fail)
+                .to.include('failed with AbortError (User-specified) after 1 attempt');
         });
 
-        const response = await request();
-        const source = response.extension.stats.lastRun.request;
+        it('should handle broken request inputs as native fetch except for extension behaviour', async () => {
 
-        const requestHeaders = source.headers;
+            /** @type {any} */
+            let stats;
 
-        expect(isHeaders(requestHeaders))
-            .to.be.true;
+            await expect(fetchEx('https://localhost-must-not-exist.com', {
+                    extension: {
+                        retry: {
+                            limit: 3,
+                            delay: 0,
+                        },
+                        onComplete(runStats) {
+                            stats = runStats;
+                        },
+                    },
+                }))
+                .to.be.rejected;
 
-        expect(Object
-            .fromEntries(requestHeaders
-                .entries()))
-            .and.eql({
-                accept: 'application/json',
-                'content-type': 'application/json',
+            expect(stats.runs.length)
+                .to.equal(4);
+            expect(stats.fail)
+                .to.include('failed with FetchError (ENOTFOUND) after 4 attempts');
+        });
+
+        it('should support extension.json', async () => {
+
+            const sourceData = {
+                foo: 1,
+            };
+
+            const url = context
+                .testRequestURL({
+                    json: JSON.stringify(sourceData),
+                });
+
+            const request = () => fetchEx(url, {
+                method: 'POST',
+                extension: {
+                    json: sourceData,
+                    debug: true,
+                },
             });
 
-        let requestBody = '';
-        for await (const chunk of source.body) {
-            requestBody += chunk;
-        }
+            const response = await request();
+            const source = response.extension.stats.lastRun.request;
 
-        expect(requestBody)
-            .to.eql(JSON.stringify(sourceData));
+            const requestHeaders = source.headers;
 
-        expect(await response.extension.body())
-            .to.eql(sourceData);
-    });
-});
+            expect(isHeaders(requestHeaders))
+                .to.be.true;
 
-describe('response.extension.body()', () => {
+            expect(Object
+                .fromEntries(requestHeaders
+                    .entries()))
+                .and.eql({
+                    accept: 'application/json',
+                    'content-type': 'application/json',
+                });
 
-    it('should infer and execute body parser', async () => {
+            let requestBody = '';
+            for await (const chunk of source.body) {
+                requestBody += chunk;
+            }
 
-        const samples = [
-            [
-                {json: 'true'},
-                true,
-            ],
-            [
-                {text: 'text'},
-                'text',
-            ],
-        ];
-
-        for (const [input, expected] of samples) {
-
-            const url = context.testRequestURL(input);
-
-            const response = await
-                fetchEx(url);
+            expect(requestBody)
+                .to.eql(JSON.stringify(sourceData));
 
             expect(await response.extension.body())
-                .to.equal(expected);
-        }
+                .to.eql(sourceData);
+        });
+    });
+
+    describe('response.extension.body()', () => {
+
+        it('should infer and execute body parser', async () => {
+
+            const samples = [
+                [
+                    {json: 'true'},
+                    true,
+                ],
+                [
+                    {text: 'text'},
+                    'text',
+                ],
+            ];
+
+            for (const [input, expected] of samples) {
+
+                const url = context.testRequestURL(input);
+
+                const response = await
+                    fetchEx(url);
+
+                expect(await response.extension.body())
+                    .to.equal(expected);
+            }
+        });
     });
 });
