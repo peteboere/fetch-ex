@@ -1,18 +1,16 @@
 import {defaults, isEmpty, isFunction, isNil, sum} from 'lodash-es';
-import {fetch, Request} from './api.native.js';
 import {toHeaders} from './api.util.js';
 import * as httpMethods from './http-methods.js';
 import * as mimeTypes from './mime-types.js';
 import {assign, countOf, defineProperties, ms, sleep} from './util.js';
-/** @import {FetchExtRequestInit, FetchExtResponse, Resource, Response} from './api.types.ts' */
+/** @import {FetchExtRequestInit, FetchExtResponse, Resource} from './api.types.ts' */
 
 /**
- * Extension of native fetch API (node-fetch)
- *
+ * Extends native {@link https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch fetch API}.
  * @param {Resource} url
  * @param {FetchExtRequestInit} [options]
  */
-export async function fetchEx(url, options) {
+export async function fetchExt(url, options) {
 
     const extension = options?.extension;
 
@@ -20,12 +18,12 @@ export async function fetchEx(url, options) {
         delete options.extension;
     }
 
-    const request = new FetchEx([url, options], extension);
+    const request = new FetchExt([url, options], extension);
 
     return request.fetch();
 }
 
-class FetchEx {
+class FetchExt {
 
     extension;
     fetchArgs;
@@ -237,7 +235,7 @@ class FetchEx {
         if (stats.lastRun.failed) {
             const {error} = stats.lastRun;
             stats.fail = prefix + (error
-                ? `failed with ${FetchEx.#errorSummary(error)}`
+                ? `failed with ${FetchExt.#errorSummary(error)}`
                 : `failed with status ${stats.lastRun.status}`)
                 + ` after ${countOf(runs, 'attempt')}`;
         }
@@ -245,7 +243,7 @@ class FetchEx {
             const failedAttempts = stats.runs
                 .filter(it => it.failed)
                 .map(it => it.error
-                    ? FetchEx.#errorSummary(it.error)
+                    ? FetchExt.#errorSummary(it.error)
                     : `${it.status}`)
                 .join(', ');
             stats.warn = `${prefix}required ${countOf(stats.runs, 'attempt')} (${failedAttempts})`;
@@ -281,7 +279,7 @@ class FetchEx {
         }
 
         if (error) {
-            if (FetchEx.#isAbortError(error)) {
+            if (FetchExt.#isAbortError(error)) {
                 if (extension.timeout) {
                     run.isRetryable = true;
                 }
@@ -296,7 +294,7 @@ class FetchEx {
             else {
                 run.isRetryable = retryConfig
                     .errorCodes
-                    .includes(FetchEx.#errorCode(error));
+                    .includes(FetchExt.#errorCode(error));
             }
         }
         else {
@@ -363,9 +361,9 @@ class FetchEx {
         const subject = error.cause || error;
         const {name, reason} = subject;
 
-        return FetchEx.#isAbortError(subject)
+        return FetchExt.#isAbortError(subject)
             ? `${name} (${reason})`
-            : `${name} (${FetchEx.#errorCode(subject)})`;
+            : `${name} (${FetchExt.#errorCode(subject)})`;
     }
 
     static #isAbortError(error) {

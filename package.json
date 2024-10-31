@@ -5,7 +5,7 @@
         "lint": "eslint --fix .",
         "test": "node --test test/test.js",
         "ts-check": "tsc -p jsconfig.json",
-        "ts-declare": "tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir .types"
+        "ts-declare": "rm -rf .types && tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir .types"
     },
     "engines": {
         "node": ">=20.14"
@@ -13,19 +13,19 @@
     "type": "module",
     "dependencies": {
         "lodash-es": "~4.17.21",
-        "node-fetch": "~3.3.0",
         "space-time": "~1.1.1"
     },
     "devDependencies": {
         "@types/node": "~20.14.15",
         "chai": "~5.1.1",
         "chai-as-promised": "~8.0.0",
-        "eslint": "~8.28.0",
-        "eslint-plugin-import": "~2.26.0",
-        "eslint-plugin-mocha": "~10.1.0",
-        "eslint-plugin-unicorn": "~45.0.1",
-        "express": "~4.19.2",
-        "typescript": "~5.5.4"
+        "eslint": "~9.13.0",
+        "eslint-plugin-import": "~2.31.0",
+        "eslint-plugin-mocha": "~10.5.0",
+        "eslint-plugin-unicorn": "~56.0.0",
+        "express": "~4.21.1",
+        "globals": "~15.11.0",
+        "typescript": "~5.6.3"
     },
     "main": "index.js",
     "types": ".types/index.d.ts",

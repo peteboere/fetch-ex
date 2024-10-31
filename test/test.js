@@ -3,7 +3,7 @@ import * as chai from 'chai';
 import {expect} from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import {isNil} from 'lodash-es';
-import {fetchEx, isHeaders, Response} from '../index.js';
+import {fetchExt, isHeaders} from '../index.js';
 import testServer from './server.js';
 
 chai.use(chaiAsPromised);
@@ -62,7 +62,7 @@ describe('fetchExt', () => {
                 const url = context.testRequestURL(input);
 
                 const response = await
-                    fetchEx(url);
+                    fetchExt(url);
 
                 expect(response)
                     .to.be.instanceOf(Response);
@@ -108,7 +108,7 @@ describe('fetchExt', () => {
                 delay: timeout * 2,
             });
 
-            const request = () => fetchEx(url, {
+            const request = () => fetchExt(url, {
                 extension: {
                     timeout,
                     retry: {
@@ -134,7 +134,7 @@ describe('fetchExt', () => {
                 .to.include('failed with AbortError (Timeout <100 ms>) after 3 attempts');
         });
 
-        it('should retry requests using extension.delay resolver and retry-after header', {timeout: 5000}, async function () {
+        it('should retry requests using extension.delay resolver and retry-after header', {timeout: 5000}, async () => {
 
             const defaultDelay = 100;
 
@@ -168,7 +168,7 @@ describe('fetchExt', () => {
                 /** @type {any} */
                 let stats;
 
-                const request = () => fetchEx(url, {
+                const request = () => fetchExt(url, {
                     extension: {
                         retry: {
                             limit: 1,
@@ -244,7 +244,7 @@ describe('fetchExt', () => {
                 controller.abort('User-specified');
             }, timeout);
 
-            const request = () => fetchEx(url, {
+            const request = () => fetchExt(url, {
                 signal: controller.signal,
                 extension: {
                     retry: {
@@ -271,7 +271,7 @@ describe('fetchExt', () => {
             /** @type {any} */
             let stats;
 
-            await expect(fetchEx('https://localhost-must-not-exist.com', {
+            await expect(fetchExt('https://localhost-must-not-exist.com', {
                     extension: {
                         retry: {
                             limit: 3,
@@ -301,7 +301,7 @@ describe('fetchExt', () => {
                     json: JSON.stringify(sourceData),
                 });
 
-            const request = () => fetchEx(url, {
+            const request = () => fetchExt(url, {
                 method: 'POST',
                 extension: {
                     json: sourceData,
@@ -358,7 +358,7 @@ describe('fetchExt', () => {
                 const url = context.testRequestURL(input);
 
                 const response = await
-                    fetchEx(url);
+                    fetchExt(url);
 
                 expect(await response.extension.body())
                     .to.equal(expected);

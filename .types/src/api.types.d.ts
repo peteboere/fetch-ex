@@ -1,4 +1,3 @@
-import { fetch } from './api.native.js';
 export type Resource = Parameters<typeof fetch>[0];
 export interface FetchExtRequestInit extends RequestInit {
     /**
@@ -51,7 +50,6 @@ export interface FetchExtRequestInit extends RequestInit {
         debug?: boolean;
     };
 }
-export type Response = Awaited<ReturnType<typeof fetch>>;
 export interface FetchExtResponse extends Awaited<ReturnType<typeof fetch>> {
     /**
      * Fetch response extension.
