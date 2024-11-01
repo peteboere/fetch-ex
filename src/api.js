@@ -1,4 +1,4 @@
-import {defaults, isEmpty, isFunction, isNil, sum} from 'lodash-es';
+import {defaults, isEmpty, isError, isFunction, isNil, sum} from 'lodash-es';
 import {toHeaders} from './api.util.js';
 import * as httpMethods from './http-methods.js';
 import * as mimeTypes from './mime-types.js';
@@ -22,6 +22,14 @@ export async function fetchExt(url, options) {
 
     return request.fetch();
 }
+
+export class FetchExtError extends Error {
+    name = this.constructor.name;
+}
+
+export class FetchError extends FetchExtError {}
+
+export class FetchOptionError extends FetchExtError {}
 
 class FetchExt {
 
@@ -85,7 +93,7 @@ class FetchExt {
         if (extension.timeout) {
             extension.timeout = ms(extension.timeout);
             if (fetchArgs[1].signal) {
-                throw new TypeError('extension.timeout cannot be used with options.signal');
+                throw new FetchOptionError('extension.timeout cannot be used with options.signal');
             }
         }
 
@@ -122,7 +130,7 @@ class FetchExt {
                     const controller = new AbortController();
                     this.fetchArgs[1].signal = controller.signal;
                     run.timeout = setTimeout(() => {
-                        controller.abort(`Timeout <${extension.timeout} ms>`);
+                        controller.abort(new FetchError(`Timed out after ${extension.timeout}ms`));
                     }, extension.timeout);
                 }
 
@@ -200,9 +208,6 @@ class FetchExt {
             extension: {
                 value: {
                     stats: this.#stats(runs),
-                    /*
-                     * Infer body parser based on content-type.
-                     */
                     body: async () => {
 
                         const type = this.response.headers
@@ -230,12 +235,12 @@ class FetchExt {
         stats.maxFetchTime = Math.max(...timings);
         stats.lastRun = runs.at(-1);
 
-        const prefix = `Fetch of '${this.request.url}' `;
+        const prefix = `Fetch of ${this.request.url} `;
 
         if (stats.lastRun.failed) {
             const {error} = stats.lastRun;
             stats.fail = prefix + (error
-                ? `failed with ${FetchExt.#errorSummary(error)}`
+                ? `failed with ${this.#errorSummary(error)}`
                 : `failed with status ${stats.lastRun.status}`)
                 + ` after ${countOf(runs, 'attempt')}`;
         }
@@ -243,7 +248,7 @@ class FetchExt {
             const failedAttempts = stats.runs
                 .filter(it => it.failed)
                 .map(it => it.error
-                    ? FetchExt.#errorSummary(it.error)
+                    ? this.#errorSummary(it.error)
                     : `${it.status}`)
                 .join(', ');
             stats.warn = `${prefix}required ${countOf(stats.runs, 'attempt')} (${failedAttempts})`;
@@ -256,16 +261,20 @@ class FetchExt {
     }
 
     async #evaluate(run, error) {
-
         if (error) {
             if (error instanceof TypeError) {
-                /*
-                 * May be thrown by misconfigured Request.
-                 * E.g. options with `body` and GET method.
-                 */
-                throw error;
+                if (error.cause) {
+                    /** Common retryable fetch errors have `Error.cause`. */
+                    run.error = error.cause;
+                }
+                else {
+                    /** Throw as unhandled error, e.g. GET method with request body. */
+                    throw error;
+                }
             }
-            run.error = error;
+            run.error = isError(error)
+                ? error
+                : new FetchError(String(error));
         }
         else {
             run.status = this.response.status;
@@ -279,22 +288,21 @@ class FetchExt {
         }
 
         if (error) {
-            if (FetchExt.#isAbortError(error)) {
+            if (this.#isAbortError(error)) {
                 if (extension.timeout) {
                     run.isRetryable = true;
                 }
                 else {
-                    /*
+                    /**
                      * Throw from user-specified AbortController
                      * overrides extension retry behaviour.
                      */
                 }
-                error.reason = this.fetchArgs[1].signal.reason;
             }
             else {
                 run.isRetryable = retryConfig
                     .errorCodes
-                    .includes(FetchExt.#errorCode(error));
+                    .includes(this.#extractErrorCode(error));
             }
         }
         else {
@@ -352,21 +360,25 @@ class FetchExt {
         return normaliseDelay(delay);
     }
 
-    static #errorCode(error) {
+    /** Extracts error code from `error` if one is available. */
+    #extractErrorCode(error) {
         return (error.cause || error).code;
     }
 
-    static #errorSummary(error) {
+    /** Formats an error summary message from `error`. */
+    #errorSummary(error) {
 
         const subject = error.cause || error;
-        const {name, reason} = subject;
+        const {name, message} = subject;
 
-        return FetchExt.#isAbortError(subject)
-            ? `${name} (${reason})`
-            : `${name} (${FetchExt.#errorCode(subject)})`;
+        return this.#isAbortError(subject)
+            ? `${name} (${message})`
+            : `${name} (${this.#extractErrorCode(subject)})`;
     }
 
-    static #isAbortError(error) {
-        return (error instanceof Error) && error.name === 'AbortError';
+    /** Checks if `error` is thrown by an AbortController, or from this lib. */
+    #isAbortError(error) {
+        return ((error instanceof Error) && error.name === 'AbortError')
+            || error instanceof FetchError;
     }
 }

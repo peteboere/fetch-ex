@@ -1,37 +1,39 @@
 {
-    "name": "fetch-ext",
-    "description": "fetch() extension",
-    "scripts": {
-        "lint": "eslint --fix .",
-        "test": "node --test test/test.js",
-        "ts-check": "tsc -p jsconfig.json",
-        "ts-declare": "rm -rf .types && tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir .types"
-    },
-    "engines": {
-        "node": ">=20.14"
-    },
-    "type": "module",
-    "dependencies": {
-        "lodash-es": "~4.17.21",
-        "space-time": "~1.1.1"
-    },
-    "devDependencies": {
-        "@types/node": "~20.14.15",
-        "chai": "~5.1.1",
-        "chai-as-promised": "~8.0.0",
-        "eslint": "~9.13.0",
-        "eslint-plugin-import": "~2.31.0",
-        "eslint-plugin-mocha": "~10.5.0",
-        "eslint-plugin-unicorn": "~56.0.0",
-        "express": "~4.21.1",
-        "globals": "~15.11.0",
-        "typescript": "~5.6.3"
-    },
-    "main": "index.js",
-    "types": ".types/index.d.ts",
-    "version": "1.1.0",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/peteboere/fetch-ext.git"
-    }
+  "name": "fetch-ext",
+  "description": "Native fetch wrapper with retryable requests, timeouts and utilities.",
+  "scripts": {
+    "lint": "eslint --fix .",
+    "test": "node --test test/test.js",
+    "ts-check": "tsc -p jsconfig.json",
+    "ts-declare": "rm -rf .types && tsc index.js --declaration --allowJs --emitDeclarationOnly --outDir .types",
+    "prepare": "husky"
+  },
+  "engines": {
+    "node": ">=20.14"
+  },
+  "type": "module",
+  "dependencies": {
+    "lodash-es": "~4.17.21",
+    "space-time": "~1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "~20.14.15",
+    "chai": "~5.1.1",
+    "chai-as-promised": "~8.0.0",
+    "eslint": "~9.13.0",
+    "eslint-plugin-import": "~2.31.0",
+    "eslint-plugin-mocha": "~10.5.0",
+    "eslint-plugin-unicorn": "~56.0.0",
+    "express": "~4.21.1",
+    "globals": "~15.11.0",
+    "husky": "~9.1.6",
+    "typescript": "~5.6.3"
+  },
+  "main": "index.js",
+  "types": ".types/index.d.ts",
+  "version": "1.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peteboere/fetch-ext.git"
+  }
 }

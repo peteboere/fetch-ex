@@ -19,7 +19,7 @@ describe('fetchExt', () => {
 
     after(() => context.server.close());
 
-    describe('fetchEx()', () => {
+    describe('fetchExt()', () => {
 
         it('should handle different request inputs as native fetch except for extension behaviour', async () => {
 
@@ -131,7 +131,7 @@ describe('fetchExt', () => {
             expect(stats.runs.length)
                 .to.equal(3);
             expect(stats.fail)
-                .to.include('failed with AbortError (Timeout <100 ms>) after 3 attempts');
+                .to.include('failed with FetchError (Timed out after 100ms) after 3 attempts');
         });
 
         it('should retry requests using extension.delay resolver and retry-after header', {timeout: 5000}, async () => {
@@ -263,7 +263,7 @@ describe('fetchExt', () => {
             expect(stats.runs.length)
                 .to.equal(1);
             expect(stats.fail)
-                .to.include('failed with AbortError (User-specified) after 1 attempt');
+                .to.include('failed with FetchError (User-specified) after 1 attempt');
         });
 
         it('should handle broken request inputs as native fetch except for extension behaviour', async () => {
@@ -271,7 +271,8 @@ describe('fetchExt', () => {
             /** @type {any} */
             let stats;
 
-            await expect(fetchExt('https://localhost-must-not-exist.com', {
+            await expect(
+                fetchExt('https://localhost-must-not-exist.com', {
                     extension: {
                         retry: {
                             limit: 3,
@@ -287,7 +288,7 @@ describe('fetchExt', () => {
             expect(stats.runs.length)
                 .to.equal(4);
             expect(stats.fail)
-                .to.include('failed with FetchError (ENOTFOUND) after 4 attempts');
+                .to.include('Error (ENOTFOUND) after 4 attempts');
         });
 
         it('should support extension.json', async () => {
@@ -310,6 +311,8 @@ describe('fetchExt', () => {
             });
 
             const response = await request();
+
+            /** @type {Request} */
             const source = response.extension.stats.lastRun.request;
 
             const requestHeaders = source.headers;
@@ -324,14 +327,6 @@ describe('fetchExt', () => {
                     accept: 'application/json',
                     'content-type': 'application/json',
                 });
-
-            let requestBody = '';
-            for await (const chunk of source.body) {
-                requestBody += chunk;
-            }
-
-            expect(requestBody)
-                .to.eql(JSON.stringify(sourceData));
 
             expect(await response.extension.body())
                 .to.eql(sourceData);

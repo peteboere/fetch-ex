@@ -2,11 +2,14 @@ export type Resource = Parameters<typeof fetch>[0];
 
 export interface FetchExtRequestInit extends RequestInit {
     /**
-     * Fetch options extension.
+     * Fetch extension options.
      */
     extension?: {
         /**
          * Request timeout in milliseconds or duration parsable by space-time package.
+         *
+         * This timeout is defined as time to first byte (TTFB). Timeout based on active
+         * time, including any resource.body handling, requires a AbortSignal.timeout().
          */
         timeout?: number | string;
 
@@ -59,7 +62,7 @@ export interface FetchExtRequestInit extends RequestInit {
     };
 }
 
-export interface FetchExtResponse extends Awaited<ReturnType<typeof fetch>> {
+export interface FetchExtResponse extends Response {
     /**
      * Fetch response extension.
      */
