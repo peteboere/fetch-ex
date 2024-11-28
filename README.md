@@ -6,6 +6,8 @@ Extension of [native fetch](https://developer.mozilla.org/en-US/docs/Web/API/Fet
 * Request timeout
 * Standalone HTTP utilities
 
+![ci status](https://github.com/peteboere/fetch-ext/actions/workflows/ci.yml/badge.svg)
+
 ## `options.extension`
 
 * **`timeout` number | string**
