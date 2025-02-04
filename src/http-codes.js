@@ -2,19 +2,10 @@
  * Status ranges:
  * https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
  */
-const statusTest = (min, max) => {
-    return status => {
-        if (! Number.isInteger(status)) {
-            throw new TypeError('Status must be an integer');
-        }
-        return status >= min && status <= max;
-    };
-};
-
-export const isSuccessCode = statusTest(200, 299);
-export const isRedirectionCode = statusTest(300, 399);
-export const isClientErrorCode = statusTest(400, 499);
-export const isServerErrorCode = statusTest(500, 599);
+export const isSuccessCode = _statusTest(200, 299);
+export const isRedirectionCode = _statusTest(300, 399);
+export const isClientErrorCode = _statusTest(400, 499);
+export const isServerErrorCode = _statusTest(500, 599);
 
 export const ACCEPTED = 202;
 export const BAD_GATEWAY = 502;
@@ -70,3 +61,12 @@ export const UNAUTHORIZED = 401;
 export const UNPROCESSABLE_ENTITY = 422;
 export const UNSUPPORTED_MEDIA_TYPE = 415;
 export const USE_PROXY = 305;
+
+function _statusTest(min, max) {
+    return status => {
+        if (! Number.isInteger(status)) {
+            throw new TypeError('Status must be an integer');
+        }
+        return status >= min && status <= max;
+    };
+}

@@ -8,14 +8,6 @@ export function isHeaders(it) {
     return it instanceof Headers;
 }
 
-export function isRequest(it) {
-    return it instanceof Request;
-}
-
-export function isResponse(it) {
-    return it instanceof Response;
-}
-
 export function toHeaders(it) {
     return isHeaders(it)
         ? it
